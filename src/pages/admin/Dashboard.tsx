@@ -1,164 +1,265 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Palette, Users, ShoppingCart, DollarSign } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { 
+  DollarSign, 
+  Users, 
+  ShoppingBag, 
+  Palette, 
+  ArrowUpRight, 
+  ArrowDownRight,
+  Package,
+  Clock,
+  CheckCheck
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
 
-// Mock dashboard data based on API response structure
-const dashboardData = {
-  totalSales: 12500,
-  totalOrders: 45,
-  totalArtworks: 340,
-  totalArtists: 28,
-  recentOrders: [
-    { id: "order1", customer: "John Doe", amount: 450, status: "completed" },
-    { id: "order2", customer: "Alice Smith", amount: 750, status: "processing" },
-    { id: "order3", customer: "Robert Brown", amount: 325, status: "processing" },
-  ],
-  salesByCategory: [
-    { category: "Painting", sales: 6500, count: 23 },
-    { category: "Sculpture", sales: 2800, count: 8 },
-    { category: "Photography", sales: 1900, count: 10 },
-    { category: "Digital Art", sales: 1300, count: 4 },
-  ],
-  salesByMonth: [
-    { month: "Jan", sales: 1200 },
-    { month: "Feb", sales: 1900 },
-    { month: "Mar", sales: 1300 },
-    { month: "Apr", sales: 1700 },
-    { month: "May", sales: 1450 },
-    { month: "Jun", sales: 2100 },
-  ],
-};
+// Mock data for the dashboard
+const salesData = [
+  { month: "Jan", amount: 12800 },
+  { month: "Feb", amount: 18700 },
+  { month: "Mar", amount: 15400 },
+  { month: "Apr", amount: 21300 },
+  { month: "May", amount: 16500 },
+  { month: "Jun", amount: 23700 },
+  { month: "Jul", amount: 25800 },
+  { month: "Aug", amount: 19200 },
+  { month: "Sep", amount: 27500 },
+  { month: "Oct", amount: 24600 },
+  { month: "Nov", amount: 32400 },
+  { month: "Dec", amount: 36800 }
+];
+
+const categorySalesData = [
+  { name: "Painting", value: 45 },
+  { name: "Sculpture", value: 23 },
+  { name: "Photography", value: 15 },
+  { name: "Digital Art", value: 10 },
+  { name: "Mixed Media", value: 7 }
+];
+
+const COLORS = ["#9b87f5", "#7E69AB", "#6E59A5", "#D6BCFA", "#8E9196"];
+
+const recentOrders = [
+  {
+    id: "ORD123456",
+    customer: "Arjun Mehta",
+    date: "2025-04-15",
+    amount: 1450,
+    status: "Delivered",
+    items: 2
+  },
+  {
+    id: "ORD123455",
+    customer: "Priya Sharma",
+    date: "2025-04-14",
+    amount: 3200,
+    status: "Processing",
+    items: 1
+  },
+  {
+    id: "ORD123454",
+    customer: "Rahul Desai",
+    date: "2025-04-14",
+    amount: 750,
+    status: "Shipped",
+    items: 1
+  },
+  {
+    id: "ORD123453",
+    customer: "Meera Patel",
+    date: "2025-04-13",
+    amount: 2320,
+    status: "Processing",
+    items: 3
+  },
+  {
+    id: "ORD123452",
+    customer: "Anand Joshi",
+    date: "2025-04-12",
+    amount: 900,
+    status: "Delivered",
+    items: 1
+  }
+];
 
 export default function Dashboard() {
+  const [stats, setStats] = useState({
+    totalSales: 0,
+    totalArtworks: 0,
+    totalOrders: 0,
+    totalArtists: 0,
+    salesGrowth: 0,
+    ordersGrowth: 0
+  });
+
+  useEffect(() => {
+    // This would be an API call in a real app
+    // Simulating loading data
+    setTimeout(() => {
+      setStats({
+        totalSales: 275000,
+        totalArtworks: 340,
+        totalOrders: 128,
+        totalArtists: 45,
+        salesGrowth: 12.5,
+        ordersGrowth: 8.3
+      });
+    }, 500);
+  }, []);
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Delivered":
+        return <Badge className="bg-green-500">Delivered</Badge>;
+      case "Shipped":
+        return <Badge className="bg-blue-500">Shipped</Badge>;
+      case "Processing":
+        return <Badge className="bg-yellow-500">Processing</Badge>;
+      case "Cancelled":
+        return <Badge className="bg-red-500">Cancelled</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
-          Overview of your Miraki Artistry Hub platform.
+          Welcome to your Miraki Artistry Hub admin dashboard.
         </p>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Stats Cards */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Sales
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{dashboardData.totalSales.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              +12% from last month
-            </p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between space-x-2">
+              <div className="flex flex-col space-y-1">
+                <span className="text-sm font-medium text-muted-foreground">Total Sales</span>
+                <span className="text-2xl font-bold">₹{stats.totalSales.toLocaleString()}</span>
+              </div>
+              <div className="rounded-full p-3 bg-primary/10">
+                <DollarSign className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm text-green-500">
+              <ArrowUpRight className="mr-1 h-4 w-4" />
+              <span>{stats.salesGrowth}% from last month</span>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Orders
-            </CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.totalOrders}</div>
-            <p className="text-xs text-muted-foreground">
-              +8% from last month
-            </p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between space-x-2">
+              <div className="flex flex-col space-y-1">
+                <span className="text-sm font-medium text-muted-foreground">Total Orders</span>
+                <span className="text-2xl font-bold">{stats.totalOrders}</span>
+              </div>
+              <div className="rounded-full p-3 bg-primary/10">
+                <ShoppingBag className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm text-green-500">
+              <ArrowUpRight className="mr-1 h-4 w-4" />
+              <span>{stats.ordersGrowth}% from last month</span>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Artworks
-            </CardTitle>
-            <Palette className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.totalArtworks}</div>
-            <p className="text-xs text-muted-foreground">
-              +15 this month
-            </p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between space-x-2">
+              <div className="flex flex-col space-y-1">
+                <span className="text-sm font-medium text-muted-foreground">Total Artworks</span>
+                <span className="text-2xl font-bold">{stats.totalArtworks}</span>
+              </div>
+              <div className="rounded-full p-3 bg-primary/10">
+                <Palette className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <span className="text-muted-foreground">Across various categories</span>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Artists
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardData.totalArtists}</div>
-            <p className="text-xs text-muted-foreground">
-              +2 this month
-            </p>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between space-x-2">
+              <div className="flex flex-col space-y-1">
+                <span className="text-sm font-medium text-muted-foreground">Total Artists</span>
+                <span className="text-2xl font-bold">{stats.totalArtists}</span>
+              </div>
+              <div className="rounded-full p-3 bg-primary/10">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <span className="text-muted-foreground">Active on the platform</span>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts as simple cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Charts */}
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Monthly Sales</CardTitle>
-            <CardDescription>
-              Sales trend over the last 6 months
-            </CardDescription>
           </CardHeader>
-          <CardContent className="pt-2">
-            <div className="space-y-2">
-              {dashboardData.salesByMonth.map((item) => (
-                <div key={item.month} className="flex items-center justify-between">
-                  <span>{item.month}</span>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="bg-primary h-4" 
-                      style={{ 
-                        width: `${(item.sales / Math.max(...dashboardData.salesByMonth.map(i => i.sales))) * 200}px`
-                      }}
-                    />
-                    <span>₹{item.sales}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <CardContent className="pt-0">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={salesData}>
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value) => [`₹${value}`, 'Sales']}
+                  labelFormatter={(label) => `Month: ${label}`}
+                />
+                <Bar dataKey="amount" fill="#9b87f5" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>Sales by Category</CardTitle>
-            <CardDescription>
-              Distribution of sales across artwork categories
-            </CardDescription>
           </CardHeader>
-          <CardContent className="pt-2">
-            <div className="space-y-2">
-              {dashboardData.salesByCategory.map((item, index) => (
-                <div key={item.category} className="flex items-center justify-between">
-                  <span>{item.category}</span>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className={`h-4 ${
-                        index % 4 === 0 ? "bg-primary" : 
-                        index % 4 === 1 ? "bg-secondary" : 
-                        index % 4 === 2 ? "bg-accent" : "bg-muted"
-                      }`} 
-                      style={{ 
-                        width: `${(item.sales / Math.max(...dashboardData.salesByCategory.map(i => i.sales))) * 200}px`
-                      }}
-                    />
-                    <span>₹{item.sales}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <CardContent className="pt-0">
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={categorySalesData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {categorySalesData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Legend />
+                <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
@@ -167,77 +268,79 @@ export default function Dashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Orders</CardTitle>
-          <CardDescription>
-            Latest orders processed on the platform
-          </CardDescription>
         </CardHeader>
         <CardContent>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left p-2">Order ID</th>
-                <th className="text-left p-2">Customer</th>
-                <th className="text-left p-2">Amount</th>
-                <th className="text-left p-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dashboardData.recentOrders.map((order) => (
-                <tr key={order.id} className="border-b">
-                  <td className="p-2">{order.id}</td>
-                  <td className="p-2">{order.customer}</td>
-                  <td className="p-2">₹{order.amount}</td>
-                  <td className="p-2">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        order.status === "completed"
-                          ? "bg-success/20 text-success"
-                          : order.status === "processing"
-                          ? "bg-warning/20 text-warning"
-                          : "bg-muted/20 text-muted-foreground"
-                      }`}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
-                </tr>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order ID</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Items</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentOrders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell className="font-medium">{order.id}</TableCell>
+                  <TableCell>{order.customer}</TableCell>
+                  <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{order.items}</TableCell>
+                  <TableCell>₹{order.amount.toLocaleString()}</TableCell>
+                  <TableCell>{getStatusBadge(order.status)}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      {/* Category Performance */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Category Performance</CardTitle>
-          <CardDescription>
-            Number of items sold by category
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-2">
-          <div className="space-y-2">
-            {dashboardData.salesByCategory.map((item, index) => (
-              <div key={item.category} className="flex items-center justify-between">
-                <span>{item.category}</span>
-                <div className="flex items-center gap-2">
-                  <div 
-                    className={`h-4 ${
-                      index % 4 === 0 ? "bg-primary" : 
-                      index % 4 === 1 ? "bg-secondary" : 
-                      index % 4 === 2 ? "bg-accent" : "bg-muted"
-                    }`} 
-                    style={{ 
-                      width: `${(item.count / Math.max(...dashboardData.salesByCategory.map(i => i.count))) * 200}px`
-                    }}
-                  />
-                  <span>{item.count} items</span>
-                </div>
+      {/* Order Status */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full p-3 bg-yellow-100">
+                <Clock className="h-5 w-5 text-yellow-600" />
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Processing</p>
+                <p className="text-2xl font-bold">8</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full p-3 bg-blue-100">
+                <Package className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Shipped</p>
+                <p className="text-2xl font-bold">12</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full p-3 bg-green-100">
+                <CheckCheck className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Delivered</p>
+                <p className="text-2xl font-bold">34</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
