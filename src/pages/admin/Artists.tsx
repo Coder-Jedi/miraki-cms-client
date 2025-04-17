@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { 
   Plus, 
   Search, 
@@ -23,26 +24,11 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ImageUpload } from "@/components/image-upload";
+import { useToast } from "@/hooks/use-toast";
+import { ArtistDetail } from "@/components/artist-detail";
+import { ArtistEditForm } from "@/components/artist-edit-form";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
 
 // Mock artists data based on API response structure
 const mockArtists = Array.from({ length: 9 }, (_, i) => ({
@@ -69,18 +55,18 @@ const mockArtists = Array.from({ length: 9 }, (_, i) => ({
 const areas = ["All Areas", "Kala Ghoda", "Bandra", "Juhu", "Powai", "Andheri"];
 
 export default function Artists() {
+  const { hasPermission } = useAuth();
+  const { toast } = useToast();
   const [artists, setArtists] = useState(mockArtists);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [areaFilter, setAreaFilter] = useState("All Areas");
-  const [newArtist, setNewArtist] = useState({
-    name: "",
-    bio: "",
-    area: "",
-    website: "",
-    instagram: "",
-    profileImage: "",
-  });
+  
+  // Dialog states
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedArtist, setSelectedArtist] = useState<any>(null);
 
   // Filter artists based on search query and area
   const filteredArtists = artists.filter((artist) => {
@@ -92,42 +78,49 @@ export default function Artists() {
     return matchesSearch && matchesArea;
   });
 
-  const handleCreateArtist = () => {
-    // In a real app, this would call the API
-    // Here we're just updating the local state for demo purposes
-    const newArtistItem = {
-      id: `artist${artists.length + 1}`,
-      name: newArtist.name,
-      bio: newArtist.bio,
-      profileImage: newArtist.profileImage || "https://source.unsplash.com/random/300x300?portrait=new",
-      location: {
-        area: newArtist.area || "Bandra",
-      },
-      socialLinks: {
-        website: newArtist.website || null,
-        instagram: newArtist.instagram || null,
-      },
-      popularity: "4.0",
-      artworksCount: 0,
-    };
+  const handleCreateOrUpdateArtist = (newArtist: any) => {
+    if (newArtist.id && artists.some(a => a.id === newArtist.id)) {
+      // Update existing artist
+      setArtists(artists.map(artist => 
+        artist.id === newArtist.id ? newArtist : artist
+      ));
+    } else {
+      // Create new artist
+      setArtists([newArtist, ...artists]);
+    }
+  };
 
-    setArtists([newArtistItem, ...artists]);
-    setIsCreateDialogOpen(false);
-    // Reset form
-    setNewArtist({
-      name: "",
-      bio: "",
-      area: "",
-      website: "",
-      instagram: "",
-      profileImage: "",
+  const handleDeleteArtist = () => {
+    if (!selectedArtist) return;
+    
+    // In a real app, this would call the API
+    setArtists(artists.filter(artist => artist.id !== selectedArtist.id));
+    
+    toast({
+      title: "Artist deleted",
+      description: `${selectedArtist.name} has been deleted successfully.`,
     });
+    
+    setIsDeleteDialogOpen(false);
+    setSelectedArtist(null);
   };
 
-  const handleDeleteArtist = (id: string) => {
-    // In a real app, this would call the API
-    setArtists(artists.filter(artist => artist.id !== id));
+  const openViewDialog = (artist: any) => {
+    setSelectedArtist(artist);
+    setIsViewDialogOpen(true);
   };
+
+  const openEditDialog = (artist: any) => {
+    setSelectedArtist(artist);
+    setIsEditDialogOpen(true);
+  };
+
+  const openDeleteDialog = (artist: any) => {
+    setSelectedArtist(artist);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const canManageArtists = hasPermission("manage_artists");
 
   return (
     <div className="space-y-6">
@@ -138,98 +131,18 @@ export default function Artists() {
             Manage all artists in your Miraki Artistry Hub.
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Artist
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Artist</DialogTitle>
-              <DialogDescription>
-                Create a new artist profile for the platform.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  placeholder="Artist Name"
-                  value={newArtist.name}
-                  onChange={(e) => setNewArtist({ ...newArtist, name: e.target.value })}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="bio">Biography</Label>
-                <Textarea
-                  id="bio"
-                  placeholder="Artist biography..."
-                  value={newArtist.bio}
-                  onChange={(e) => setNewArtist({ ...newArtist, bio: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="area">Area</Label>
-                <Select 
-                  onValueChange={(value) => setNewArtist({ ...newArtist, area: value })}
-                >
-                  <SelectTrigger id="area">
-                    <SelectValue placeholder="Select Area" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {areas.slice(1).map((area) => (
-                      <SelectItem key={area} value={area}>
-                        {area}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="website">Website (optional)</Label>
-                  <Input
-                    id="website"
-                    placeholder="https://artistwebsite.com"
-                    value={newArtist.website}
-                    onChange={(e) => setNewArtist({ ...newArtist, website: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="instagram">Instagram (optional)</Label>
-                  <Input
-                    id="instagram"
-                    placeholder="https://instagram.com/artist"
-                    value={newArtist.instagram}
-                    onChange={(e) => setNewArtist({ ...newArtist, instagram: e.target.value })}
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Profile Image</Label>
-                <ImageUpload
-                  onChange={(url) => setNewArtist({ ...newArtist, profileImage: url || "" })}
-                  value={newArtist.profileImage}
-                  endpoint="artist"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateArtist}>Create Artist</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {canManageArtists && (
+          <Button 
+            className="flex items-center gap-2"
+            onClick={() => {
+              setSelectedArtist(null);
+              setIsCreateDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Add Artist
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -299,21 +212,33 @@ export default function Artists() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="flex items-center gap-2">
+                    <DropdownMenuItem 
+                      className="flex items-center gap-2"
+                      onClick={() => openViewDialog(artist)}
+                    >
                       <EyeIcon className="h-4 w-4" />
                       <span>View Profile</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-center gap-2">
-                      <Edit className="h-4 w-4" />
-                      <span>Edit</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="flex items-center gap-2 text-destructive focus:text-destructive"
-                      onClick={() => handleDeleteArtist(artist.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>Delete</span>
-                    </DropdownMenuItem>
+                    
+                    {canManageArtists && (
+                      <>
+                        <DropdownMenuItem 
+                          className="flex items-center gap-2"
+                          onClick={() => openEditDialog(artist)}
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span>Edit</span>
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuItem 
+                          className="flex items-center gap-2 text-destructive focus:text-destructive"
+                          onClick={() => openDeleteDialog(artist)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Delete</span>
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -356,6 +281,40 @@ export default function Artists() {
           </Card>
         ))}
       </div>
+
+      {/* View Artist Dialog */}
+      {selectedArtist && (
+        <ArtistDetail
+          artist={selectedArtist}
+          open={isViewDialogOpen}
+          onClose={() => setIsViewDialogOpen(false)}
+        />
+      )}
+
+      {/* Create/Edit Artist Dialog */}
+      <ArtistEditForm
+        artist={isCreateDialogOpen ? undefined : selectedArtist}
+        open={isCreateDialogOpen || isEditDialogOpen}
+        onClose={() => {
+          setIsCreateDialogOpen(false);
+          setIsEditDialogOpen(false);
+        }}
+        onSave={handleCreateOrUpdateArtist}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      {selectedArtist && (
+        <ConfirmationDialog
+          open={isDeleteDialogOpen}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          onConfirm={handleDeleteArtist}
+          title="Delete Artist"
+          description={`Are you sure you want to delete "${selectedArtist.name}"? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="destructive"
+        />
+      )}
     </div>
   );
 }

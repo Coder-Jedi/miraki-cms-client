@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { 
   Plus, 
   Search, 
@@ -22,26 +23,24 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ImageUpload } from "@/components/image-upload";
+import { useToast } from "@/hooks/use-toast";
+import { ArtworkDetail } from "@/components/artwork-detail";
+import { ArtworkEditForm } from "@/components/artwork-edit-form";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
+
+// Artwork Categories
+const artworkCategories = [
+  "All",
+  "Painting",
+  "Sculpture",
+  "Photography",
+  "Digital Art",
+  "Mixed Media",
+  "Ceramics",
+  "Illustration",
+  "Other",
+];
 
 // Mock artworks data based on API response structure
 const mockArtworks = Array.from({ length: 10 }, (_, i) => ({
@@ -59,38 +58,22 @@ const mockArtworks = Array.from({ length: 10 }, (_, i) => ({
   location: {
     area: ["Kala Ghoda", "Bandra", "Juhu", "Powai", "Andheri"][i % 5],
   },
+  description: `This is a detailed description for Artwork ${i + 1}. It showcases the artist's unique style and creative vision. The piece explores themes of nature, human emotions, and contemporary social issues through a vibrant color palette and intricate compositions.`,
 }));
 
-// Artwork Categories
-const artworkCategories = [
-  "All",
-  "Painting",
-  "Sculpture",
-  "Photography",
-  "Digital Art",
-  "Mixed Media",
-  "Ceramics",
-  "Illustration",
-  "Other",
-];
-
 export default function Artworks() {
+  const { hasPermission } = useAuth();
+  const { toast } = useToast();
   const [artworks, setArtworks] = useState(mockArtworks);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [newArtwork, setNewArtwork] = useState({
-    title: "",
-    artistId: "",
-    year: new Date().getFullYear(),
-    medium: "",
-    price: "",
-    category: "",
-    description: "",
-    image: "",
-    forSale: true,
-    featured: false,
-  });
+  
+  // Dialog states
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedArtwork, setSelectedArtwork] = useState<any>(null);
 
   // Filter artworks based on search query and category
   const filteredArtworks = artworks.filter((artwork) => {
@@ -102,46 +85,31 @@ export default function Artworks() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleCreateArtwork = () => {
-    // In a real app, this would call the API
-    // Here we're just updating the local state for demo purposes
-    const newArtworkItem = {
-      id: `artwork${artworks.length + 1}`,
-      title: newArtwork.title,
-      artist: "New Artist", // This would come from the selected artist
-      artistId: newArtwork.artistId,
-      year: Number(newArtwork.year),
-      medium: newArtwork.medium,
-      image: newArtwork.image || "https://source.unsplash.com/random/300x300?art=new",
-      price: Number(newArtwork.price),
-      category: newArtwork.category as any,
-      featured: newArtwork.featured,
-      forSale: newArtwork.forSale,
-      location: {
-        area: "Bandra", // This would be set from the form
-      },
-    };
-
-    setArtworks([newArtworkItem, ...artworks]);
-    setIsCreateDialogOpen(false);
-    // Reset form
-    setNewArtwork({
-      title: "",
-      artistId: "",
-      year: new Date().getFullYear(),
-      medium: "",
-      price: "",
-      category: "",
-      description: "",
-      image: "",
-      forSale: true,
-      featured: false,
-    });
+  const handleCreateOrUpdateArtwork = (newArtwork: any) => {
+    if (newArtwork.id && artworks.some(a => a.id === newArtwork.id)) {
+      // Update existing artwork
+      setArtworks(artworks.map(artwork => 
+        artwork.id === newArtwork.id ? newArtwork : artwork
+      ));
+    } else {
+      // Create new artwork
+      setArtworks([newArtwork, ...artworks]);
+    }
   };
 
-  const handleDeleteArtwork = (id: string) => {
+  const handleDeleteArtwork = () => {
+    if (!selectedArtwork) return;
+    
     // In a real app, this would call the API
-    setArtworks(artworks.filter(artwork => artwork.id !== id));
+    setArtworks(artworks.filter(artwork => artwork.id !== selectedArtwork.id));
+    
+    toast({
+      title: "Artwork deleted",
+      description: `${selectedArtwork.title} has been deleted successfully.`,
+    });
+    
+    setIsDeleteDialogOpen(false);
+    setSelectedArtwork(null);
   };
 
   const handleToggleFeatured = (id: string) => {
@@ -153,7 +121,32 @@ export default function Artworks() {
           : artwork
       )
     );
+    
+    const artwork = artworks.find(a => a.id === id);
+    if (artwork) {
+      toast({
+        title: artwork.featured ? "Removed from featured" : "Added to featured",
+        description: `${artwork.title} has been ${artwork.featured ? "removed from" : "added to"} featured artworks.`,
+      });
+    }
   };
+
+  const openViewDialog = (artwork: any) => {
+    setSelectedArtwork(artwork);
+    setIsViewDialogOpen(true);
+  };
+
+  const openEditDialog = (artwork: any) => {
+    setSelectedArtwork(artwork);
+    setIsEditDialogOpen(true);
+  };
+
+  const openDeleteDialog = (artwork: any) => {
+    setSelectedArtwork(artwork);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const canManageArtworks = hasPermission("manage_artworks");
 
   return (
     <div className="space-y-6">
@@ -164,151 +157,18 @@ export default function Artworks() {
             Manage all artworks in your Miraki Artistry Hub.
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Artwork
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Artwork</DialogTitle>
-              <DialogDescription>
-                Upload and catalog a new artwork to the platform.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    placeholder="Artwork Title"
-                    value={newArtwork.title}
-                    onChange={(e) => setNewArtwork({ ...newArtwork, title: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="artist">Artist</Label>
-                  <Select 
-                    onValueChange={(value) => setNewArtwork({ ...newArtwork, artistId: value })}
-                  >
-                    <SelectTrigger id="artist">
-                      <SelectValue placeholder="Select Artist" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="artist1">Artist 1</SelectItem>
-                      <SelectItem value="artist2">Artist 2</SelectItem>
-                      <SelectItem value="artist3">Artist 3</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="year">Year</Label>
-                  <Input
-                    id="year"
-                    type="number"
-                    placeholder="Year"
-                    value={newArtwork.year}
-                    onChange={(e) => setNewArtwork({ ...newArtwork, year: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="medium">Medium</Label>
-                  <Input
-                    id="medium"
-                    placeholder="Oil on Canvas"
-                    value={newArtwork.medium}
-                    onChange={(e) => setNewArtwork({ ...newArtwork, medium: e.target.value })}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Price (₹)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    placeholder="Price"
-                    value={newArtwork.price}
-                    onChange={(e) => setNewArtwork({ ...newArtwork, price: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select 
-                    onValueChange={(value) => setNewArtwork({ ...newArtwork, category: value })}
-                  >
-                    <SelectTrigger id="category">
-                      <SelectValue placeholder="Select Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {artworkCategories.slice(1).map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe the artwork..."
-                  value={newArtwork.description}
-                  onChange={(e) => setNewArtwork({ ...newArtwork, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Artwork Image</Label>
-                <ImageUpload
-                  onChange={(url) => setNewArtwork({ ...newArtwork, image: url || "" })}
-                  value={newArtwork.image}
-                  endpoint="artwork"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="forSale"
-                    checked={newArtwork.forSale}
-                    onChange={(e) => setNewArtwork({ ...newArtwork, forSale: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <Label htmlFor="forSale">Available for Sale</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="featured"
-                    checked={newArtwork.featured}
-                    onChange={(e) => setNewArtwork({ ...newArtwork, featured: e.target.checked })}
-                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <Label htmlFor="featured">Featured Artwork</Label>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateArtwork}>Create Artwork</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {canManageArtworks && (
+          <Button 
+            className="flex items-center gap-2"
+            onClick={() => {
+              setSelectedArtwork(null);
+              setIsCreateDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Add Artwork
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -380,37 +240,50 @@ export default function Artworks() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="flex items-center gap-2">
+                    <DropdownMenuItem 
+                      className="flex items-center gap-2"
+                      onClick={() => openViewDialog(artwork)}
+                    >
                       <EyeIcon className="h-4 w-4" />
                       <span>View Details</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="flex items-center gap-2">
-                      <Edit className="h-4 w-4" />
-                      <span>Edit</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="flex items-center gap-2"
-                      onClick={() => handleToggleFeatured(artwork.id)}
-                    >
-                      {artwork.featured ? (
-                        <>
-                          <StarOff className="h-4 w-4" />
-                          <span>Remove Featured</span>
-                        </>
-                      ) : (
-                        <>
-                          <Star className="h-4 w-4" />
-                          <span>Mark as Featured</span>
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      className="flex items-center gap-2 text-destructive focus:text-destructive"
-                      onClick={() => handleDeleteArtwork(artwork.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>Delete</span>
-                    </DropdownMenuItem>
+                    
+                    {canManageArtworks && (
+                      <>
+                        <DropdownMenuItem 
+                          className="flex items-center gap-2"
+                          onClick={() => openEditDialog(artwork)}
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span>Edit</span>
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuItem 
+                          className="flex items-center gap-2"
+                          onClick={() => handleToggleFeatured(artwork.id)}
+                        >
+                          {artwork.featured ? (
+                            <>
+                              <StarOff className="h-4 w-4" />
+                              <span>Remove Featured</span>
+                            </>
+                          ) : (
+                            <>
+                              <Star className="h-4 w-4" />
+                              <span>Mark as Featured</span>
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuItem 
+                          className="flex items-center gap-2 text-destructive focus:text-destructive"
+                          onClick={() => openDeleteDialog(artwork)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Delete</span>
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -429,6 +302,40 @@ export default function Artworks() {
           </Card>
         ))}
       </div>
+
+      {/* View Artwork Dialog */}
+      {selectedArtwork && (
+        <ArtworkDetail
+          artwork={selectedArtwork}
+          open={isViewDialogOpen}
+          onClose={() => setIsViewDialogOpen(false)}
+        />
+      )}
+
+      {/* Create/Edit Artwork Dialog */}
+      <ArtworkEditForm
+        artwork={isCreateDialogOpen ? undefined : selectedArtwork}
+        open={isCreateDialogOpen || isEditDialogOpen}
+        onClose={() => {
+          setIsCreateDialogOpen(false);
+          setIsEditDialogOpen(false);
+        }}
+        onSave={handleCreateOrUpdateArtwork}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      {selectedArtwork && (
+        <ConfirmationDialog
+          open={isDeleteDialogOpen}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          onConfirm={handleDeleteArtwork}
+          title="Delete Artwork"
+          description={`Are you sure you want to delete "${selectedArtwork.title}"? This action cannot be undone.`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          variant="destructive"
+        />
+      )}
     </div>
   );
 }

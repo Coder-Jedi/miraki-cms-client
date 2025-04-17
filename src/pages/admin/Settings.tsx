@@ -1,337 +1,450 @@
 
 import { useState } from "react";
-import { 
-  Save, 
-  Instagram, 
-  Facebook, 
-  Twitter, 
-  Mail, 
-  Phone,
-  Link as LinkIcon,
-  Upload,
-  Info,
-  Globe,
-  FileText,
-  TruckIcon,
-  PackageOpen
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ImageUpload } from "@/components/image-upload";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-
-// Mock site settings
-const mockSettings = {
-  siteName: "Miraki Artistry Hub",
-  logo: "https://placehold.co/200x80?text=Miraki+Artistry",
-  contactEmail: "contact@miraki-art.com",
-  contactPhone: "+91 9876543210",
-  socialLinks: {
-    instagram: "https://instagram.com/miraki-art",
-    facebook: "https://facebook.com/miraki-art",
-    twitter: "https://twitter.com/miraki-art",
-  },
-  footerText: "© 2025 Miraki Artistry Hub. All rights reserved.",
-  metaDescription: "Miraki Artistry Hub is a platform connecting artists with art enthusiasts in Mumbai, showcasing a diverse range of artworks and supporting local talent.",
-  termsUrl: "/terms",
-  privacyUrl: "/privacy",
-  shippingInfo: "We offer free shipping within Mumbai. For other locations in India, a flat shipping fee of ₹200 applies. International shipping is available at variable rates depending on the destination.",
-  returnPolicy: "Artworks can be returned within 7 days of delivery if they arrive damaged or significantly different from their online representation. Custom commissioned works are non-returnable.",
-};
+import { ImageUpload } from "@/components/image-upload";
+import { Badge } from "@/components/ui/badge";
+import { Clock, Mail, Phone, RefreshCw, Save, Globe, Instagram, Facebook, AlertTriangle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Settings() {
-  const [settings, setSettings] = useState(mockSettings);
-  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [settings, setSettings] = useState({
+    general: {
+      siteName: "Miraki Artistry Hub",
+      logo: "https://source.unsplash.com/random/300x300?logo",
+      metaDescription: "Discover and collect unique artworks from Mumbai's emerging and established artists.",
+      contactEmail: "contact@miraki-art.com",
+      contactPhone: "+91 9876543210",
+    },
+    social: {
+      instagram: "https://instagram.com/miraki_art",
+      facebook: "https://facebook.com/mirakiart",
+      twitter: "https://twitter.com/miraki_art",
+    },
+    policy: {
+      termsUrl: "/terms",
+      privacyUrl: "/privacy",
+      shippingInfo: "Standard shipping takes 3-5 business days within Mumbai and 5-7 business days for the rest of India.",
+      returnPolicy: "We accept returns within 7 days of delivery for items that arrive damaged or do not match the description.",
+    },
+    security: {
+      twoFactorAuth: false,
+      passwordExpiryDays: 90,
+      sessionTimeoutMinutes: 60,
+    }
+  });
 
-  const handleSave = () => {
-    // In a real app, this would call the API
-    setIsSaving(true);
+  const handleSave = (section: string) => {
+    setIsLoading(true);
     // Simulate API call
     setTimeout(() => {
-      setIsSaving(false);
-      // Show success message
-      alert("Settings saved successfully");
+      setIsLoading(false);
+      toast({
+        title: "Settings saved",
+        description: `${section} settings were successfully updated.`,
+      });
     }, 1000);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Site Settings</h1>
-          <p className="text-muted-foreground">
-            Configure global settings for your Miraki Artistry Hub.
-          </p>
-        </div>
-        <Button 
-          className="flex items-center gap-2" 
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          <Save className="h-4 w-4" />
-          {isSaving ? "Saving..." : "Save Changes"}
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-muted-foreground">
+          Manage your Miraki Artistry Hub platform settings.
+        </p>
       </div>
 
       <Tabs defaultValue="general">
-        <TabsList>
+        <TabsList className="grid grid-cols-4 w-full md:w-fit">
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="contact">Contact & Social</TabsTrigger>
-          <TabsTrigger value="seo">SEO & Meta</TabsTrigger>
-          <TabsTrigger value="policies">Policies</TabsTrigger>
+          <TabsTrigger value="social">Social</TabsTrigger>
+          <TabsTrigger value="policy">Policies</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
-        
-        {/* General Settings */}
-        <TabsContent value="general" className="space-y-4 pt-4">
+
+        <TabsContent value="general" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
               <CardTitle>General Information</CardTitle>
               <CardDescription>
-                Basic information about your platform.
+                Update your site's basic information that appears across the platform.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="siteName">Site Name</Label>
-                  <Input
-                    id="siteName"
-                    value={settings.siteName}
-                    onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="footerText">Footer Text</Label>
-                  <Input
-                    id="footerText"
-                    value={settings.footerText}
-                    onChange={(e) => setSettings({ ...settings, footerText: e.target.value })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="siteName">Site Name</Label>
+                <Input 
+                  id="siteName" 
+                  value={settings.general.siteName} 
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    general: { ...settings.general, siteName: e.target.value }
+                  })}
+                />
               </div>
               
               <div className="space-y-2">
                 <Label>Logo</Label>
-                <div className="flex items-center gap-4">
-                  <div className="w-[200px] h-[80px] bg-muted/20 rounded-md flex items-center justify-center overflow-hidden">
-                    <img src={settings.logo} alt="Logo" className="max-w-full max-h-full" />
+                <ImageUpload 
+                  value={settings.general.logo}
+                  onChange={(url) => setSettings({
+                    ...settings,
+                    general: { ...settings.general, logo: url || "" }
+                  })}
+                  endpoint="banner"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="metaDescription">Meta Description</Label>
+                <Textarea 
+                  id="metaDescription" 
+                  rows={3}
+                  value={settings.general.metaDescription}
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    general: { ...settings.general, metaDescription: e.target.value }
+                  })}
+                />
+                <p className="text-sm text-muted-foreground">This description appears in search engine results.</p>
+              </div>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="contactEmail">Contact Email</Label>
+                  <div className="flex">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground">
+                      <Mail className="h-4 w-4" />
+                    </span>
+                    <Input 
+                      id="contactEmail" 
+                      type="email"
+                      className="rounded-l-none"
+                      value={settings.general.contactEmail}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        general: { ...settings.general, contactEmail: e.target.value }
+                      })}
+                    />
                   </div>
-                  <div className="flex-1">
-                    <ImageUpload
-                      onChange={(url) => setSettings({ ...settings, logo: url || settings.logo })}
-                      value={settings.logo}
-                      endpoint="banner"
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="contactPhone">Contact Phone</Label>
+                  <div className="flex">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground">
+                      <Phone className="h-4 w-4" />
+                    </span>
+                    <Input 
+                      id="contactPhone" 
+                      type="tel"
+                      className="rounded-l-none"
+                      value={settings.general.contactPhone}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        general: { ...settings.general, contactPhone: e.target.value }
+                      })}
                     />
                   </div>
                 </div>
               </div>
+              
+              <Button 
+                onClick={() => handleSave('General')} 
+                disabled={isLoading}
+                className="mt-4"
+              >
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
         
-        {/* Contact & Social */}
-        <TabsContent value="contact" className="space-y-4 pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Information</CardTitle>
-              <CardDescription>
-                How customers can reach you.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contactEmail" className="flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Contact Email
-                  </Label>
-                  <Input
-                    id="contactEmail"
-                    type="email"
-                    value={settings.contactEmail}
-                    onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contactPhone" className="flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    Contact Phone
-                  </Label>
-                  <Input
-                    id="contactPhone"
-                    value={settings.contactPhone}
-                    onChange={(e) => setSettings({ ...settings, contactPhone: e.target.value })}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
+        <TabsContent value="social" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
               <CardTitle>Social Media Links</CardTitle>
               <CardDescription>
-                Connect your social media accounts.
+                Connect your social media platforms to showcase across the site.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="instagram" className="flex items-center gap-2">
+              <div className="space-y-2">
+                <Label htmlFor="instagram">Instagram</Label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground">
                     <Instagram className="h-4 w-4" />
-                    Instagram
-                  </Label>
-                  <Input
-                    id="instagram"
-                    placeholder="https://instagram.com/youraccount"
-                    value={settings.socialLinks.instagram}
-                    onChange={(e) => setSettings({ 
-                      ...settings, 
-                      socialLinks: { ...settings.socialLinks, instagram: e.target.value } 
+                  </span>
+                  <Input 
+                    id="instagram" 
+                    placeholder="https://instagram.com/your_account"
+                    className="rounded-l-none"
+                    value={settings.social.instagram}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      social: { ...settings.social, instagram: e.target.value }
                     })}
                   />
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="facebook" className="flex items-center gap-2">
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="facebook">Facebook</Label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground">
                     <Facebook className="h-4 w-4" />
-                    Facebook
-                  </Label>
-                  <Input
-                    id="facebook"
-                    placeholder="https://facebook.com/yourpage"
-                    value={settings.socialLinks.facebook}
-                    onChange={(e) => setSettings({ 
-                      ...settings, 
-                      socialLinks: { ...settings.socialLinks, facebook: e.target.value } 
+                  </span>
+                  <Input 
+                    id="facebook" 
+                    placeholder="https://facebook.com/your_page"
+                    className="rounded-l-none"
+                    value={settings.social.facebook}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      social: { ...settings.social, facebook: e.target.value }
                     })}
                   />
                 </div>
-                
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="twitter">Twitter</Label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground">
+                    <Globe className="h-4 w-4" />
+                  </span>
+                  <Input 
+                    id="twitter" 
+                    placeholder="https://twitter.com/your_handle"
+                    className="rounded-l-none"
+                    value={settings.social.twitter}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      social: { ...settings.social, twitter: e.target.value }
+                    })}
+                  />
+                </div>
+              </div>
+              
+              <Button 
+                onClick={() => handleSave('Social')} 
+                disabled={isLoading}
+                className="mt-4"
+              >
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="policy" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Legal & Policy Settings</CardTitle>
+              <CardDescription>
+                Manage your platform's legal documents and policy information.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="twitter" className="flex items-center gap-2">
-                    <Twitter className="h-4 w-4" />
-                    Twitter
-                  </Label>
-                  <Input
-                    id="twitter"
-                    placeholder="https://twitter.com/youraccount"
-                    value={settings.socialLinks.twitter}
-                    onChange={(e) => setSettings({ 
-                      ...settings, 
-                      socialLinks: { ...settings.socialLinks, twitter: e.target.value } 
+                  <Label htmlFor="termsUrl">Terms of Service URL</Label>
+                  <Input 
+                    id="termsUrl" 
+                    placeholder="/terms"
+                    value={settings.policy.termsUrl}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      policy: { ...settings.policy, termsUrl: e.target.value }
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="privacyUrl">Privacy Policy URL</Label>
+                  <Input 
+                    id="privacyUrl" 
+                    placeholder="/privacy"
+                    value={settings.policy.privacyUrl}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      policy: { ...settings.policy, privacyUrl: e.target.value }
                     })}
                   />
                 </div>
               </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="shippingInfo">Shipping Information</Label>
+                <Textarea 
+                  id="shippingInfo" 
+                  rows={3}
+                  value={settings.policy.shippingInfo}
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    policy: { ...settings.policy, shippingInfo: e.target.value }
+                  })}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="returnPolicy">Return Policy</Label>
+                <Textarea 
+                  id="returnPolicy" 
+                  rows={4}
+                  value={settings.policy.returnPolicy}
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    policy: { ...settings.policy, returnPolicy: e.target.value }
+                  })}
+                />
+              </div>
+              
+              <Button 
+                onClick={() => handleSave('Policy')} 
+                disabled={isLoading}
+                className="mt-4"
+              >
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
         
-        {/* SEO & Meta */}
-        <TabsContent value="seo" className="space-y-4 pt-4">
+        <TabsContent value="security" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>SEO Settings</CardTitle>
+              <CardTitle>Security Settings</CardTitle>
               <CardDescription>
-                Optimize your site for search engines.
+                Configure security settings for your platform.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="metaDescription" className="flex items-center gap-2">
-                  <Info className="h-4 w-4" />
-                  Meta Description
-                </Label>
-                <Textarea
-                  id="metaDescription"
-                  placeholder="Brief description of your platform for search engines..."
-                  value={settings.metaDescription}
-                  onChange={(e) => setSettings({ ...settings, metaDescription: e.target.value })}
-                  rows={4}
+              <div className="flex items-center justify-between px-4 py-3 border rounded-lg">
+                <div className="space-y-0.5">
+                  <Label htmlFor="twoFactorAuth" className="text-base">Two-Factor Authentication</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Require two-factor authentication for admin users
+                  </p>
+                </div>
+                <Switch 
+                  id="twoFactorAuth" 
+                  checked={settings.security.twoFactorAuth}
+                  onCheckedChange={(checked) => setSettings({
+                    ...settings,
+                    security: { ...settings.security, twoFactorAuth: checked }
+                  })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {settings.metaDescription.length}/160 characters recommended
-                </p>
               </div>
               
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
-                  Site URLs
-                </Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="termsUrl" className="text-sm text-muted-foreground">
-                      Terms & Conditions URL
-                    </Label>
-                    <Input
-                      id="termsUrl"
-                      placeholder="/terms"
-                      value={settings.termsUrl}
-                      onChange={(e) => setSettings({ ...settings, termsUrl: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="privacyUrl" className="text-sm text-muted-foreground">
-                      Privacy Policy URL
-                    </Label>
-                    <Input
-                      id="privacyUrl"
-                      placeholder="/privacy"
-                      value={settings.privacyUrl}
-                      onChange={(e) => setSettings({ ...settings, privacyUrl: e.target.value })}
-                    />
-                  </div>
+                <Label htmlFor="passwordExpiryDays">Password Expiry (Days)</Label>
+                <div className="flex items-center">
+                  <Input 
+                    id="passwordExpiryDays" 
+                    type="number"
+                    min="0"
+                    max="365"
+                    value={settings.security.passwordExpiryDays}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      security: { ...settings.security, passwordExpiryDays: parseInt(e.target.value) }
+                    })}
+                  />
+                  <Badge variant="outline" className="ml-2">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Days
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">Set to 0 for no expiry</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="sessionTimeoutMinutes">Session Timeout (Minutes)</Label>
+                <div className="flex items-center">
+                  <Input 
+                    id="sessionTimeoutMinutes" 
+                    type="number"
+                    min="5"
+                    max="1440"
+                    value={settings.security.sessionTimeoutMinutes}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      security: { ...settings.security, sessionTimeoutMinutes: parseInt(e.target.value) }
+                    })}
+                  />
+                  <Badge variant="outline" className="ml-2">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Minutes
+                  </Badge>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Policies */}
-        <TabsContent value="policies" className="space-y-4 pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Shopping Policies</CardTitle>
-              <CardDescription>
-                Define your shipping and return policies.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="shippingInfo" className="flex items-center gap-2">
-                  <TruckIcon className="h-4 w-4" />
-                  Shipping Information
-                </Label>
-                <Textarea
-                  id="shippingInfo"
-                  placeholder="Describe your shipping policy, costs, and timeframes..."
-                  value={settings.shippingInfo}
-                  onChange={(e) => setSettings({ ...settings, shippingInfo: e.target.value })}
-                  rows={4}
-                />
+              
+              <div className="mt-6 px-4 py-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-lg flex">
+                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 mr-3 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-medium text-amber-800 dark:text-amber-400">Security Notice</h4>
+                  <p className="text-sm text-amber-700 dark:text-amber-500 mt-1">
+                    Changes to security settings will be applied to all users on their next login.
+                  </p>
+                </div>
               </div>
               
-              <Separator className="my-4" />
-              
-              <div className="space-y-2">
-                <Label htmlFor="returnPolicy" className="flex items-center gap-2">
-                  <PackageOpen className="h-4 w-4" />
-                  Return Policy
-                </Label>
-                <Textarea
-                  id="returnPolicy"
-                  placeholder="Describe your return and refund policy..."
-                  value={settings.returnPolicy}
-                  onChange={(e) => setSettings({ ...settings, returnPolicy: e.target.value })}
-                  rows={4}
-                />
-              </div>
+              <Button 
+                onClick={() => handleSave('Security')} 
+                disabled={isLoading}
+                className="mt-4"
+              >
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
