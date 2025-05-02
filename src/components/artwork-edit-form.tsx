@@ -1,6 +1,7 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useArtists } from "@/hooks/use-artists";
+import { useArtworkCategories, useArtworkAreas, useUploadArtworkImage } from "@/hooks/use-artworks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,21 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { ImageUpload } from "@/components/image-upload";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
-
-// Artwork Categories
-const artworkCategories = [
-  "Painting",
-  "Sculpture",
-  "Photography",
-  "Digital Art",
-  "Mixed Media",
-  "Ceramics",
-  "Illustration",
-  "Other",
-];
-
-// Areas
-const areas = ["Kala Ghoda", "Bandra", "Juhu", "Powai", "Andheri"];
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ArtworkEditFormProps {
   artwork?: any;
@@ -50,11 +37,22 @@ interface ArtworkEditFormProps {
 export function ArtworkEditForm({ artwork, open, onClose, onSave }: ArtworkEditFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const isNew = !artwork?.id;
+  const isNew = !artwork?._id;
+  
+  // Fetch artists, categories, and areas from API
+  const { data: artistsData, isLoading: isLoadingArtists } = useArtists();
+  const { data: categoriesData, isLoading: isLoadingCategories } = useArtworkCategories();
+  const { data: areasData, isLoading: isLoadingAreas } = useArtworkAreas();
+  const uploadImageMutation = useUploadArtworkImage();
+  
+  // Get the data from the API responses
+  const artists = artistsData?.items || [];
+  const categories = categoriesData?.data?.categories || [];
+  const areas = areasData?.data?.areas || [];
   
   const [form, setForm] = useState({
     title: artwork?.title || "",
-    artistId: artwork?.artistId || "artist1",
+    artistId: artwork?.artistId || "",
     year: artwork?.year || new Date().getFullYear(),
     medium: artwork?.medium || "",
     price: artwork?.price || "",
@@ -64,11 +62,60 @@ export function ArtworkEditForm({ artwork, open, onClose, onSave }: ArtworkEditF
     forSale: artwork?.forSale ?? true,
     featured: artwork?.featured ?? false,
     location: {
-      area: artwork?.location?.area || "Bandra",
+      area: artwork?.location?.area || "",
     }
   });
+
+  // If the artwork prop changes, update the form
+  useEffect(() => {
+    if (artwork) {
+      setForm({
+        title: artwork.title || "",
+        artistId: artwork.artistId || "",
+        year: artwork.year || new Date().getFullYear(),
+        medium: artwork.medium || "",
+        price: artwork.price || "",
+        category: artwork.category || "",
+        description: artwork.description || "",
+        image: artwork.image || "",
+        forSale: artwork.forSale ?? true,
+        featured: artwork.featured ?? false,
+        location: {
+          area: artwork.location?.area || "",
+        }
+      });
+    }
+  }, [artwork]);
   
-  const handleSubmit = () => {
+  const handleImageUpload = async (file: File) => {
+    try {
+      const result = await uploadImageMutation.mutateAsync({
+        file,
+        onProgress: (progress) => {
+          console.log(`Upload progress: ${progress}%`);
+        }
+      });
+      
+      // Store both url and key from the API response
+      if (result.data) {
+        setForm({
+          ...form,
+          image: result.data.url,
+        });
+        return result.data.url;
+      }
+      return null;
+    } catch (error) {
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+  
+  const handleSubmit = async () => {
     if (!form.title) {
       toast({
         title: "Validation Error",
@@ -77,28 +124,45 @@ export function ArtworkEditForm({ artwork, open, onClose, onSave }: ArtworkEditF
       });
       return;
     }
+
+    if (!form.artistId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select an artist",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!form.category) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a category",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      
+    try {
       const updatedArtwork = {
         ...artwork,
         ...form,
-        id: artwork?.id || `artwork${Date.now()}`, // Generate ID for new artwork
+        price: Number(form.price),
+        year: Number(form.year),
       };
       
       onSave(updatedArtwork);
-      
+    } catch (error) {
       toast({
-        title: isNew ? "Artwork Created" : "Artwork Updated",
-        description: `${form.title} has been ${isNew ? "created" : "updated"} successfully.`,
+        title: "Error",
+        description: "Failed to save artwork. Please try again.",
+        variant: "destructive",
       });
-      
-      onClose();
-    }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -127,19 +191,25 @@ export function ArtworkEditForm({ artwork, open, onClose, onSave }: ArtworkEditF
               </div>
               <div className="space-y-2">
                 <Label htmlFor="artist">Artist</Label>
-                <Select 
-                  value={form.artistId}
-                  onValueChange={(value) => setForm({ ...form, artistId: value })}
-                >
-                  <SelectTrigger id="artist">
-                    <SelectValue placeholder="Select Artist" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="artist1">Artist 1</SelectItem>
-                    <SelectItem value="artist2">Artist 2</SelectItem>
-                    <SelectItem value="artist3">Artist 3</SelectItem>
-                  </SelectContent>
-                </Select>
+                {isLoadingArtists ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Select 
+                    value={form.artistId}
+                    onValueChange={(value) => setForm({ ...form, artistId: value })}
+                  >
+                    <SelectTrigger id="artist">
+                      <SelectValue placeholder="Select Artist" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {artists.map((artist) => (
+                        <SelectItem key={artist._id} value={artist._id}>
+                          {artist.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
             
@@ -178,44 +248,52 @@ export function ArtworkEditForm({ artwork, open, onClose, onSave }: ArtworkEditF
               </div>
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select 
-                  value={form.category}
-                  onValueChange={(value) => setForm({ ...form, category: value })}
-                >
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {artworkCategories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isLoadingCategories ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Select 
+                    value={form.category}
+                    onValueChange={(value) => setForm({ ...form, category: value })}
+                  >
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Select Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="area">Area</Label>
-              <Select 
-                value={form.location.area}
-                onValueChange={(value) => setForm({ 
-                  ...form, 
-                  location: { ...form.location, area: value } 
-                })}
-              >
-                <SelectTrigger id="area">
-                  <SelectValue placeholder="Select Area" />
-                </SelectTrigger>
-                <SelectContent>
-                  {areas.map((area) => (
-                    <SelectItem key={area} value={area}>
-                      {area}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isLoadingAreas ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select 
+                  value={form.location.area}
+                  onValueChange={(value) => setForm({ 
+                    ...form, 
+                    location: { ...form.location, area: value } 
+                  })}
+                >
+                  <SelectTrigger id="area">
+                    <SelectValue placeholder="Select Area" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {areas.map((area) => (
+                      <SelectItem key={area} value={area}>
+                        {area}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -235,6 +313,7 @@ export function ArtworkEditForm({ artwork, open, onClose, onSave }: ArtworkEditF
                 onChange={(url) => setForm({ ...form, image: url || "" })}
                 value={form.image}
                 endpoint="artwork"
+                onUpload={handleImageUpload}
               />
             </div>
             

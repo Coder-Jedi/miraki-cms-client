@@ -145,7 +145,7 @@ export default function Orders() {
   // Filter orders
   const filteredOrders = orders.filter((order) => {
     const matchesSearch = 
-      order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order._id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customerEmail.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -178,7 +178,7 @@ export default function Orders() {
   const saveStatusUpdate = () => {
     // In a real app, this would call the API
     const updatedOrders = orders.map(order => {
-      if (order.id === updatingOrder.id) {
+      if (order._id === updatingOrder._id) {
         const updatedOrder = {
           ...order,
           status: newStatus,
@@ -209,7 +209,7 @@ export default function Orders() {
     
     toast({
       title: "Order status updated",
-      description: `Order ${updatingOrder.id} has been updated to ${newStatus}.`,
+      description: `Order ${updatingOrder._id} has been updated to ${newStatus}.`,
     });
   };
 
@@ -339,8 +339,8 @@ export default function Orders() {
             </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
+                <TableRow key={order._id}>
+                  <TableCell className="font-medium">{order._id}</TableCell>
                   <TableCell>
                     <div>
                       <div>{order.customerName}</div>
@@ -399,7 +399,7 @@ export default function Orders() {
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>
-              Order {viewOrder?.id} placed on {viewOrder?.createdAt && new Date(viewOrder.createdAt).toLocaleDateString()}
+              Order {viewOrder?._id} placed on {viewOrder?.createdAt && new Date(viewOrder.createdAt).toLocaleDateString()}
             </DialogDescription>
           </DialogHeader>
           {viewOrder && (
@@ -479,7 +479,7 @@ export default function Orders() {
                 <h3 className="text-lg font-medium mb-2">Order Items</h3>
                 <div className="space-y-4">
                   {viewOrder.items.map((item: any) => (
-                    <div key={item.id} className="flex items-center gap-4">
+                    <div key={item._id} className="flex items-center gap-4">
                       <div className="flex-shrink-0 w-[60px] h-[60px] rounded overflow-hidden">
                         <img 
                           src={item.artwork.image} 
@@ -556,7 +556,7 @@ export default function Orders() {
           <DialogHeader>
             <DialogTitle>Update Order Status</DialogTitle>
             <DialogDescription>
-              Change the status of order {updatingOrder?.id}
+              Change the status of order {updatingOrder?._id}
             </DialogDescription>
           </DialogHeader>
           {updatingOrder && (

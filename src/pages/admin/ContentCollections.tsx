@@ -109,7 +109,7 @@ export default function ContentCollections() {
     // In a real app, this would call the API
     setCollections(
       collections.map(collection => 
-        collection.id === selectedCollection.id 
+        collection._id === selectedCollection._id 
           ? selectedCollection
           : collection
       )
@@ -119,14 +119,14 @@ export default function ContentCollections() {
 
   const handleDeleteCollection = (id: string) => {
     // In a real app, this would call the API
-    setCollections(collections.filter(collection => collection.id !== id));
+    setCollections(collections.filter(collection => collection._id !== id));
   };
 
   const handleToggleFeatured = (id: string) => {
     // In a real app, this would call the API
     setCollections(
       collections.map(collection => 
-        collection.id === id 
+        collection._id === id 
           ? { ...collection, featured: !collection.featured } 
           : collection
       )
@@ -218,7 +218,7 @@ export default function ContentCollections() {
       {/* Collections Grid */}
       <div className="grid gap-6 md:grid-cols-2">
         {collections.map((collection) => (
-          <Card key={collection.id} className={`${collection.featured ? 'border-primary/50' : ''}`}>
+          <Card key={collection._id} className={`${collection.featured ? 'border-primary/50' : ''}`}>
             <div className="relative aspect-[3/2] rounded-t-md overflow-hidden">
               <img
                 src={collection.coverImage}
@@ -252,7 +252,7 @@ export default function ContentCollections() {
                     variant={collection.featured ? "default" : "outline"}
                     size="sm"
                     className="flex items-center gap-1"
-                    onClick={() => handleToggleFeatured(collection.id)}
+                    onClick={() => handleToggleFeatured(collection._id)}
                   >
                     {collection.featured ? (
                       <>
@@ -284,7 +284,7 @@ export default function ContentCollections() {
                       variant="ghost" 
                       size="sm"
                       className="flex items-center gap-1 text-destructive hover:text-destructive"
-                      onClick={() => handleDeleteCollection(collection.id)}
+                      onClick={() => handleDeleteCollection(collection._id)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       <span>Delete</span>

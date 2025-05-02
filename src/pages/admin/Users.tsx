@@ -92,7 +92,7 @@ export default function Users() {
     const matchesSearch = 
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.id.toLowerCase().includes(searchQuery.toLowerCase());
+      user._id.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = 
       roleFilter === "All Roles" || user.role === roleFilter;
     const matchesStatus = 
@@ -108,7 +108,7 @@ export default function Users() {
 
   const handleDeleteUser = () => {
     // In a real app, this would call the API
-    setUsers(users.filter(user => user.id !== selectedUser.id));
+    setUsers(users.filter(user => user._id !== selectedUser._id));
     setIsDeleteDialogOpen(false);
   };
 
@@ -116,7 +116,7 @@ export default function Users() {
     // In a real app, this would call the API
     setUsers(
       users.map(user => 
-        user.id === userId 
+        user._id === userId 
           ? { ...user, role: newRole as any } 
           : user
       )
@@ -127,7 +127,7 @@ export default function Users() {
     // In a real app, this would call the API
     setUsers(
       users.map(user => 
-        user.id === userId 
+        user._id === userId 
           ? { ...user, status: newStatus as any } 
           : user
       )
@@ -221,7 +221,7 @@ export default function Users() {
             </TableHeader>
             <TableBody>
               {filteredUsers.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow key={user._id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <img
@@ -238,7 +238,7 @@ export default function Users() {
                   <TableCell>
                     <Select 
                       value={user.role}
-                      onValueChange={(value) => handleUpdateRole(user.id, value)}
+                      onValueChange={(value) => handleUpdateRole(user._id, value)}
                     >
                       <SelectTrigger className="h-8 w-[110px]">
                         <SelectValue />
@@ -253,7 +253,7 @@ export default function Users() {
                   <TableCell>
                     <Select 
                       value={user.status}
-                      onValueChange={(value) => handleUpdateStatus(user.id, value)}
+                      onValueChange={(value) => handleUpdateStatus(user._id, value)}
                     >
                       <SelectTrigger className="h-8 w-[110px]">
                         <SelectValue />

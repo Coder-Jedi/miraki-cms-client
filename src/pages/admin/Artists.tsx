@@ -1,8 +1,5 @@
-
 import { useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
 import { 
-  Plus, 
   Search, 
   Filter, 
   ChevronDown, 
@@ -13,10 +10,14 @@ import {
   MapPin,
   Instagram,
   Globe,
-  Users
+  Users,
+  Plus,
+  ArrowUpDown,
+  ExternalLink,
+  Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { 
   DropdownMenu, 
@@ -24,297 +25,469 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ArtistDetail } from "@/components/artist-detail";
 import { ArtistEditForm } from "@/components/artist-edit-form";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
-
-// Mock artists data based on API response structure
-const mockArtists = Array.from({ length: 9 }, (_, i) => ({
-  id: `artist${i + 1}`,
-  name: `Artist ${i + 1}`,
-  bio: `Artist ${i + 1} is a contemporary ${
-    ['painter', 'sculptor', 'photographer', 'digital artist', 'illustrator'][i % 5]
-  } whose work explores various themes through ${
-    ['vibrant colors', 'bold strokes', 'minimalist compositions', 'intricate details', 'innovative techniques'][i % 5]
-  }.`,
-  profileImage: `https://source.unsplash.com/random/300x300?portrait=${i + 1}`,
-  location: {
-    area: ["Kala Ghoda", "Bandra", "Juhu", "Powai", "Andheri"][i % 5],
-  },
-  socialLinks: {
-    website: i % 3 === 0 ? `https://artist${i+1}.com` : null,
-    instagram: `https://instagram.com/artist${i+1}`,
-  },
-  popularity: (Math.random() * 2 + 3).toFixed(1), // Random rating between 3.0 and 5.0
-  artworksCount: Math.floor(Math.random() * 20) + 1,
-}));
-
-// Areas for filtering
-const areas = ["All Areas", "Kala Ghoda", "Bandra", "Juhu", "Powai", "Andheri"];
+import { useArtists, useDeleteArtist } from "@/hooks/use-artists";
+import { Artist } from "@/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 export default function Artists() {
-  const { hasPermission } = useAuth();
-  const { toast } = useToast();
-  const [artists, setArtists] = useState(mockArtists);
   const [searchQuery, setSearchQuery] = useState("");
-  const [areaFilter, setAreaFilter] = useState("All Areas");
-  
-  // Dialog states
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedArtist, setSelectedArtist] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [filterType, setFilterType] = useState<string | null>(null);
 
-  // Filter artists based on search query and area
-  const filteredArtists = artists.filter((artist) => {
-    const matchesSearch = 
-      artist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      artist.bio.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesArea = 
-      areaFilter === "All Areas" || artist.location.area === areaFilter;
-    return matchesSearch && matchesArea;
+  const { toast } = useToast();
+  const { data: artistsResponse, isLoading, error } = useArtists({ 
+    page: currentPage, 
+    search: searchQuery,
+    featured: filterType === "Featured" ? true : undefined,
+    sortBy: sortField,
+    sortOrder: sortDirection,
   });
 
-  const handleCreateOrUpdateArtist = (newArtist: any) => {
-    if (newArtist.id && artists.some(a => a.id === newArtist.id)) {
-      // Update existing artist
-      setArtists(artists.map(artist => 
-        artist.id === newArtist.id ? newArtist : artist
-      ));
+  const artists = artistsResponse?.items ?? [];
+  // Make sure we have a valid pagination object with sensible defaults
+  const pagination = {
+    page: artistsResponse?.pagination?.page || currentPage,
+    pages: artistsResponse?.pagination?.pages || 1,
+    total: artistsResponse?.pagination?.total || artists.length,
+    perPage: artistsResponse?.pagination?.limit || 20
+  };
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
-      // Create new artist
-      setArtists([newArtist, ...artists]);
+      setSortField(field);
+      setSortDirection("asc");
     }
   };
 
-  const handleDeleteArtist = () => {
+  const handleView = (artist: Artist) => {
+    setSelectedArtist(artist);
+    setIsDetailOpen(true);
+  };
+
+  const handleEdit = (artist: Artist | null) => {
+    setSelectedArtist(artist);
+    setIsEditOpen(true);
+  };
+
+  const handleDelete = async () => {
     if (!selectedArtist) return;
-    
-    // In a real app, this would call the API
-    setArtists(artists.filter(artist => artist.id !== selectedArtist.id));
-    
-    toast({
-      title: "Artist deleted",
-      description: `${selectedArtist.name} has been deleted successfully.`,
-    });
-    
-    setIsDeleteDialogOpen(false);
-    setSelectedArtist(null);
+
+    try {
+      await deleteArtistMutation.mutateAsync(selectedArtist._id);
+      toast({
+        title: "Artist deleted",
+        description: "The artist has been successfully deleted.",
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedArtist(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete the artist. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const openViewDialog = (artist: any) => {
-    setSelectedArtist(artist);
-    setIsViewDialogOpen(true);
-  };
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <Card className="border-none shadow-none">
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px]">Image</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Artworks</TableHead>
+                  <TableHead>Popularity</TableHead>
+                  <TableHead>Socials</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-12 w-12 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[180px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[150px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-8 rounded-md ml-auto" /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      );
+    }
 
-  const openEditDialog = (artist: any) => {
-    setSelectedArtist(artist);
-    setIsEditDialogOpen(true);
-  };
+    if (error) {
+      return (
+        <Card>
+          <div className="p-8 text-center">
+            <div className="text-lg font-semibold text-destructive mb-2">
+              Failed to load artists
+            </div>
+            <p className="text-muted-foreground mb-4">
+              There was an error loading the artists. Please try again later.
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </div>
+        </Card>
+      );
+    }
 
-  const openDeleteDialog = (artist: any) => {
-    setSelectedArtist(artist);
-    setIsDeleteDialogOpen(true);
-  };
+    if (artists.length === 0) {
+      return (
+        <Card>
+          <div className="p-8 text-center">
+            <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <div className="text-lg font-semibold mb-2">
+              No artists found
+            </div>
+            <p className="text-muted-foreground mb-4">
+              {searchQuery 
+                ? "No artists match your search criteria. Try adjusting your filters."
+                : "Get started by adding your first artist to the platform."}
+            </p>
+            <Button onClick={() => handleEdit(null)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Artist
+            </Button>
+          </div>
+        </Card>
+      );
+    }
 
-  const canManageArtists = hasPermission("manage_artists");
+    return (
+      <div className="space-y-4">
+        <Card className="border-none shadow-none">
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px]">Image</TableHead>
+                  <TableHead>
+                    <Button variant="ghost" className="p-0 hover:bg-transparent" onClick={() => handleSort('name')}>
+                      Name
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button variant="ghost" className="p-0 hover:bg-transparent" onClick={() => handleSort('location')}>
+                      Location
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button variant="ghost" className="p-0 hover:bg-transparent" onClick={() => handleSort('artworkCount')}>
+                      Artworks
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button variant="ghost" className="p-0 hover:bg-transparent" onClick={() => handleSort('popularity')}>
+                      Popularity
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TableHead>
+                  <TableHead>Socials</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {artists.map((artist) => (
+                  <TableRow key={artist._id}>
+                    <TableCell>
+                      {artist.profileImage ? (
+                        <img
+                          src={artist.profileImage}
+                          alt={artist.name}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                          <Users className="w-5 h-5" />
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center">
+                        {artist.name}
+                        {artist.featured && (
+                          <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-700 border-amber-200 flex items-center">
+                            <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" />
+                            Featured
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {artist.location && (
+                        <div className="flex items-center text-sm">
+                          <MapPin className="w-3 h-3 mr-1 text-muted-foreground" />
+                          <span className="text-muted-foreground">
+                            {artist.location?.area || "N/A"}
+                          </span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {artist.artworks?.length ? (
+                        <Badge variant="secondary" className="font-normal">
+                          {artist.artworks.length}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">0</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {artist.popularity ? (
+                        <Badge variant="outline" className="font-normal">
+                          {artist.popularity}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {artist.socialLinks?.website && (
+                          <a
+                            href={artist.socialLinks.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary"
+                            title="Website"
+                          >
+                            <Globe className="w-4 h-4" />
+                          </a>
+                        )}
+                        {artist.socialLinks?.instagram && (
+                          <a
+                            href={artist.socialLinks.instagram}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary"
+                            title="Instagram"
+                          >
+                            <Instagram className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[160px]">
+                          <DropdownMenuItem onClick={() => handleView(artist)} className="cursor-pointer">
+                            <EyeIcon className="w-4 h-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEdit(artist)} className="cursor-pointer">
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setSelectedArtist(artist);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                            className="cursor-pointer text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+
+        {/* Always show pagination for testing */}
+        <div className="flex justify-center mt-6">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  href="#" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage(Math.max(1, currentPage - 1));
+                  }}
+                  aria-disabled={currentPage <= 1}
+                  className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: pagination.pages }).map((_, i) => {
+                const pageNum = i + 1;
+                // Show current page, first, last, and one page before/after current
+                if (
+                  pageNum === 1 ||
+                  pageNum === pagination.pages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(pageNum);
+                        }}
+                        isActive={pageNum === currentPage}
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                } else if (
+                  (pageNum === 2 && currentPage > 3) ||
+                  (pageNum === pagination.pages - 1 && currentPage < pagination.pages - 2)
+                ) {
+                  return <PaginationItem key={pageNum}><PaginationEllipsis /></PaginationItem>;
+                }
+                return null;
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  href="#" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage(Math.min(pagination.pages, currentPage + 1));
+                  }}
+                  aria-disabled={currentPage >= pagination.pages}
+                  className={currentPage >= pagination.pages ? "pointer-events-none opacity-50" : ""}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Artists</h1>
           <p className="text-muted-foreground">
-            Manage all artists in your Miraki Artistry Hub.
+            Manage artists and their profiles on your platform.
           </p>
         </div>
-        {canManageArtists && (
-          <Button 
-            className="flex items-center gap-2"
-            onClick={() => {
-              setSelectedArtist(null);
-              setIsCreateDialogOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            Add Artist
-          </Button>
-        )}
+        <Button onClick={() => handleEdit(null)} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Add Artist
+        </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap gap-4">
+        <div className="relative flex-1 min-w-[240px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search artists..."
-            className="pl-8"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1); // Reset to first page on search
+            }}
+            className="pl-8"
           />
         </div>
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                <span>Area: {areaFilter}</span>
-                <ChevronDown className="h-4 w-4 ml-2" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              {areas.map((area) => (
-                <DropdownMenuItem 
-                  key={area}
-                  onClick={() => setAreaFilter(area)}
-                >
-                  {area}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="outline" onClick={() => {
-            setSearchQuery("");
-            setAreaFilter("All Areas");
-          }}>
-            Clear
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <Filter className="w-4 h-4 mr-2" />
+              Filter
+              <ChevronDown className="w-4 h-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => setFilterType(null)}>All</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterType("Most Popular")}>Most Popular</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterType("Recently Added")}>Recently Added</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterType("Most Artworks")}>Most Artworks</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFilterType("Featured")}>Featured</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Artists Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredArtists.map((artist) => (
-          <Card key={artist.id} className="overflow-hidden">
-            <div className="relative h-[260px]">
-              <img
-                src={artist.profileImage}
-                alt={artist.name}
-                className="object-cover w-full h-full"
-              />
-            </div>
-            <CardContent className="p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-medium line-clamp-1">{artist.name}</h3>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    <span>{artist.location.area}</span>
-                  </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="-mr-2">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem 
-                      className="flex items-center gap-2"
-                      onClick={() => openViewDialog(artist)}
-                    >
-                      <EyeIcon className="h-4 w-4" />
-                      <span>View Profile</span>
-                    </DropdownMenuItem>
-                    
-                    {canManageArtists && (
-                      <>
-                        <DropdownMenuItem 
-                          className="flex items-center gap-2"
-                          onClick={() => openEditDialog(artist)}
-                        >
-                          <Edit className="h-4 w-4" />
-                          <span>Edit</span>
-                        </DropdownMenuItem>
-                        
-                        <DropdownMenuItem 
-                          className="flex items-center gap-2 text-destructive focus:text-destructive"
-                          onClick={() => openDeleteDialog(artist)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span>Delete</span>
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              <p className="text-sm line-clamp-2 mb-3">{artist.bio}</p>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="flex items-center gap-1">
-                    <Users className="h-3 w-3 mr-1" />
-                    {artist.artworksCount} {artist.artworksCount === 1 ? 'Artwork' : 'Artworks'}
-                  </Badge>
-                  <div className="flex items-center text-sm">
-                    <span className="text-yellow-500 mr-1">★</span>
-                    {artist.popularity}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {artist.socialLinks.instagram && (
-                    <a 
-                      href={artist.socialLinks.instagram} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-primary"
-                    >
-                      <Instagram className="h-4 w-4" />
-                    </a>
-                  )}
-                  {artist.socialLinks.website && (
-                    <a 
-                      href={artist.socialLinks.website} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-primary"
-                    >
-                      <Globe className="h-4 w-4" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {renderContent()}
 
-      {/* View Artist Dialog */}
       {selectedArtist && (
-        <ArtistDetail
-          artist={selectedArtist}
-          open={isViewDialogOpen}
-          onClose={() => setIsViewDialogOpen(false)}
+        <>
+          <ArtistDetail
+            artist={selectedArtist}
+            open={isDetailOpen}
+            onOpenChange={setIsDetailOpen}
+          />
+          <ArtistEditForm
+            artist={selectedArtist}
+            open={isEditOpen}
+            onOpenChange={setIsEditOpen}
+          />
+        </>
+      )}
+
+      {!selectedArtist && (
+        <ArtistEditForm
+          artist={null}
+          open={isEditOpen}
+          onOpenChange={setIsEditOpen}
         />
       )}
 
-      {/* Create/Edit Artist Dialog */}
-      <ArtistEditForm
-        artist={isCreateDialogOpen ? undefined : selectedArtist}
-        open={isCreateDialogOpen || isEditDialogOpen}
-        onClose={() => {
-          setIsCreateDialogOpen(false);
-          setIsEditDialogOpen(false);
-        }}
-        onSave={handleCreateOrUpdateArtist}
+      <ConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Delete Artist"
+        description="Are you sure you want to delete this artist? This action cannot be undone."
+        confirmText="Delete"
+        onConfirm={handleDelete}
+        variant="destructive"
       />
-
-      {/* Delete Confirmation Dialog */}
-      {selectedArtist && (
-        <ConfirmationDialog
-          open={isDeleteDialogOpen}
-          onClose={() => setIsDeleteDialogOpen(false)}
-          onConfirm={handleDeleteArtist}
-          title="Delete Artist"
-          description={`Are you sure you want to delete "${selectedArtist.name}"? This action cannot be undone.`}
-          confirmText="Delete"
-          cancelText="Cancel"
-          variant="destructive"
-        />
-      )}
     </div>
   );
 }

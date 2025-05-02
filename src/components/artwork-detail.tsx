@@ -171,7 +171,7 @@ export function ArtworkDetail({ artwork, open, onClose }: ArtworkDetailProps) {
                   <h3 className="text-lg font-semibold mb-4">Other Information</h3>
                   <div className="space-y-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Artwork ID:</span> {artwork.id}
+                      <span className="text-muted-foreground">Artwork ID:</span> {artwork._id}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Created:</span> {new Date().toLocaleDateString()}

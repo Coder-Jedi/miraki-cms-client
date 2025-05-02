@@ -1,6 +1,8 @@
-
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useArtworks, useCreateArtwork, useUpdateArtwork, useDeleteArtwork, useToggleArtworkFeatured } from "@/hooks/use-artworks";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Artwork, UpdateArtworkDto } from "@/types";
 import { 
   Plus, 
   Search, 
@@ -11,8 +13,7 @@ import {
   EyeIcon,
   Star,
   StarOff,
-  MoreHorizontal,
-  Upload
+  MoreHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,29 +43,10 @@ const artworkCategories = [
   "Other",
 ];
 
-// Mock artworks data based on API response structure
-const mockArtworks = Array.from({ length: 10 }, (_, i) => ({
-  id: `artwork${i + 1}`,
-  title: `Artwork ${i + 1}`,
-  artist: `Artist ${(i % 3) + 1}`,
-  artistId: `artist${(i % 3) + 1}`,
-  year: 2023 - (i % 3),
-  medium: ["Oil on Canvas", "Acrylic on Paper", "Mixed Media", "Digital Art", "Photography"][i % 5],
-  image: `https://source.unsplash.com/random/300x300?art=${i + 1}`,
-  price: Math.floor(Math.random() * 5000) + 500,
-  category: ["Painting", "Sculpture", "Photography", "Digital Art", "Mixed Media"][i % 5],
-  featured: i < 3,
-  forSale: i % 4 !== 0,
-  location: {
-    area: ["Kala Ghoda", "Bandra", "Juhu", "Powai", "Andheri"][i % 5],
-  },
-  description: `This is a detailed description for Artwork ${i + 1}. It showcases the artist's unique style and creative vision. The piece explores themes of nature, human emotions, and contemporary social issues through a vibrant color palette and intricate compositions.`,
-}));
-
 export default function Artworks() {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { toast } = useToast();
-  const [artworks, setArtworks] = useState(mockArtworks);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   
@@ -73,10 +55,20 @@ export default function Artworks() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedArtwork, setSelectedArtwork] = useState<any>(null);
+  const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null);
+  
+  // API mutations
+  const createArtworkMutation = useCreateArtwork();
+  const updateArtworkMutation = useUpdateArtwork(selectedArtwork?._id || "");
+  const deleteArtworkMutation = useDeleteArtwork();
+  const toggleFeatureMutation = useToggleArtworkFeatured();
+  
+  // Query for fetching artworks
+  const { data: artworks, isLoading } = useArtworks();
+  const artworkList = artworks?.items ?? [];
 
   // Filter artworks based on search query and category
-  const filteredArtworks = artworks.filter((artwork) => {
+  const filteredArtworks = artworkList.filter((artwork) => {
     const matchesSearch = 
       artwork.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       artwork.artist.toLowerCase().includes(searchQuery.toLowerCase());
@@ -85,71 +77,117 @@ export default function Artworks() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleCreateOrUpdateArtwork = (newArtwork: any) => {
-    if (newArtwork.id && artworks.some(a => a.id === newArtwork.id)) {
-      // Update existing artwork
-      setArtworks(artworks.map(artwork => 
-        artwork.id === newArtwork.id ? newArtwork : artwork
-      ));
-    } else {
-      // Create new artwork
-      setArtworks([newArtwork, ...artworks]);
-    }
-  };
+  // Check permissions
+  const canManageArtworks = hasPermission('manage_artworks');
+  const canManageOwnArtworks = hasPermission('manage_own_artworks');
+  
+  // Filter artworks based on permissions
+  const accessibleArtworks = filteredArtworks.filter(artwork => {
+    if (canManageArtworks) return true;
+    if (canManageOwnArtworks && artwork.artistId === user?._id) return true;
+    return false;
+  });
 
-  const handleDeleteArtwork = () => {
-    if (!selectedArtwork) return;
-    
-    // In a real app, this would call the API
-    setArtworks(artworks.filter(artwork => artwork.id !== selectedArtwork.id));
-    
-    toast({
-      title: "Artwork deleted",
-      description: `${selectedArtwork.title} has been deleted successfully.`,
-    });
-    
-    setIsDeleteDialogOpen(false);
-    setSelectedArtwork(null);
-  };
-
-  const handleToggleFeatured = (id: string) => {
-    // In a real app, this would call the API
-    setArtworks(
-      artworks.map(artwork => 
-        artwork.id === id 
-          ? { ...artwork, featured: !artwork.featured } 
-          : artwork
-      )
-    );
-    
-    const artwork = artworks.find(a => a.id === id);
-    if (artwork) {
+  const handleCreateOrUpdateArtwork = async (artwork: Partial<Artwork>) => {
+    try {
+      if (artwork._id) {
+        // Convert to UpdateArtworkDto before updating
+        const updateDto: UpdateArtworkDto = {
+          title: artwork.title,
+          artistId: artwork.artistId,
+          year: artwork.year,
+          medium: artwork.medium,
+          dimensions: artwork.dimensions,
+          image: artwork.image,
+          additionalImages: artwork.additionalImages,
+          location: artwork.location,
+          price: artwork.price,
+          category: artwork.category,
+          description: artwork.description,
+          featured: artwork.featured,
+          forSale: artwork.forSale,
+        };
+        
+        // Update existing artwork with the DTO
+        await updateArtworkMutation.mutateAsync({
+          id: artwork._id,
+          data: updateDto
+        });
+        
+        toast({
+          title: "Artwork updated",
+          description: `${artwork.title} has been updated successfully.`,
+        });
+        setIsEditDialogOpen(false);
+      } else {
+        // Create new artwork
+        await createArtworkMutation.mutateAsync(artwork);
+        toast({
+          title: "Artwork created",
+          description: `${artwork.title} has been created successfully.`,
+        });
+        setIsCreateDialogOpen(false);
+      }
+      
+      // Reset the selected artwork
+      setSelectedArtwork(null);
+      
+      // Manually invalidate the artworks query to ensure fresh data
+      queryClient.invalidateQueries(['artworks']);
+      
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save artwork';
       toast({
-        title: artwork.featured ? "Removed from featured" : "Added to featured",
-        description: `${artwork.title} has been ${artwork.featured ? "removed from" : "added to"} featured artworks.`,
+        title: "Error",
+        description: message,
+        variant: "destructive",
       });
     }
   };
 
-  const openViewDialog = (artwork: any) => {
-    setSelectedArtwork(artwork);
-    setIsViewDialogOpen(true);
+  const handleDeleteArtwork = async () => {
+    if (!selectedArtwork) return;
+    
+    try {
+      await deleteArtworkMutation.mutateAsync(selectedArtwork._id);
+      toast({
+        title: "Artwork deleted",
+        description: `${selectedArtwork.title} has been deleted successfully.`,
+      });
+      setIsDeleteDialogOpen(false);
+      setSelectedArtwork(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete artwork';
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    }
   };
 
-  const openEditDialog = (artwork: any) => {
-    setSelectedArtwork(artwork);
-    setIsEditDialogOpen(true);
+  const handleToggleFeatured = async (id: string) => {
+    try {
+      const artwork = artworkList.find(a => a._id === id);
+      if (artwork) {
+        await toggleFeatureMutation.mutateAsync({ id, featured: !artwork.featured });
+        toast({
+          title: artwork.featured ? "Removed from featured" : "Added to featured",
+          description: `${artwork.title} has been ${artwork.featured ? "removed from" : "added to"} featured artworks.`,
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update featured status';
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    }
   };
-
-  const openDeleteDialog = (artwork: any) => {
-    setSelectedArtwork(artwork);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const canManageArtworks = hasPermission("manage_artworks");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Artworks</h1>
@@ -213,8 +251,8 @@ export default function Artworks() {
 
       {/* Artworks Grid */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredArtworks.map((artwork) => (
-          <Card key={artwork.id} className="overflow-hidden">
+        {accessibleArtworks.map((artwork) => (
+          <Card key={artwork._id} className="overflow-hidden">
             <div className="relative aspect-square">
               <img
                 src={artwork.image}
@@ -242,7 +280,10 @@ export default function Artworks() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem 
                       className="flex items-center gap-2"
-                      onClick={() => openViewDialog(artwork)}
+                      onClick={() => {
+                        setSelectedArtwork(artwork);
+                        setIsViewDialogOpen(true);
+                      }}
                     >
                       <EyeIcon className="h-4 w-4" />
                       <span>View Details</span>
@@ -252,7 +293,10 @@ export default function Artworks() {
                       <>
                         <DropdownMenuItem 
                           className="flex items-center gap-2"
-                          onClick={() => openEditDialog(artwork)}
+                          onClick={() => {
+                            setSelectedArtwork(artwork);
+                            setIsEditDialogOpen(true);
+                          }}
                         >
                           <Edit className="h-4 w-4" />
                           <span>Edit</span>
@@ -260,7 +304,7 @@ export default function Artworks() {
                         
                         <DropdownMenuItem 
                           className="flex items-center gap-2"
-                          onClick={() => handleToggleFeatured(artwork.id)}
+                          onClick={() => handleToggleFeatured(artwork._id)}
                         >
                           {artwork.featured ? (
                             <>
@@ -277,7 +321,10 @@ export default function Artworks() {
                         
                         <DropdownMenuItem 
                           className="flex items-center gap-2 text-destructive focus:text-destructive"
-                          onClick={() => openDeleteDialog(artwork)}
+                          onClick={() => {
+                            setSelectedArtwork(artwork);
+                            setIsDeleteDialogOpen(true);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                           <span>Delete</span>
@@ -327,7 +374,7 @@ export default function Artworks() {
       {selectedArtwork && (
         <ConfirmationDialog
           open={isDeleteDialogOpen}
-          onClose={() => setIsDeleteDialogOpen(false)}
+          onOpenChange={setIsDeleteDialogOpen}
           onConfirm={handleDeleteArtwork}
           title="Delete Artwork"
           description={`Are you sure you want to delete "${selectedArtwork.title}"? This action cannot be undone.`}

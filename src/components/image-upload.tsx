@@ -1,127 +1,182 @@
-
-import { useState } from "react";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Upload, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ImageUploadProps {
-  value: string;
-  onChange: (url: string | null) => void;
-  endpoint: "artwork" | "artist" | "banner";
+  value?: string;
+  onChange: (value: string) => void;
+  onUpload: (file: File) => Promise<string | null>;
+  isUploading?: boolean;
+  endpoint?: "artist" | "artwork" | "banner"; // Used for analytics or specific handling
 }
 
-export function ImageUpload({ value, onChange, endpoint }: ImageUploadProps) {
-  const { toast } = useToast();
-  const [isUploading, setIsUploading] = useState(false);
+export function ImageUpload({
+  value,
+  onChange,
+  onUpload,
+  isUploading = false,
+  endpoint,
+}: ImageUploadProps) {
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock image upload - in a real app this would upload to your storage service
-  const uploadImage = async (file: File) => {
-    setIsUploading(true);
+  // Simulated progress for better UX when actual progress isn't available
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
     
-    try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Create a data URL for preview
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          onChange(e.target.result as string);
-          toast({
-            title: "Image uploaded",
-            description: "The image was uploaded successfully.",
-          });
-        }
-      };
-      
-      reader.readAsDataURL(file);
-    } catch (error) {
-      toast({
-        title: "Upload failed",
-        description: "There was an error uploading your image.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
+    if (isUploading) {
+      setUploadProgress(0);
+      interval = setInterval(() => {
+        setUploadProgress(prev => {
+          // Stop at 90% until actual upload completes
+          if (prev < 90) {
+            return prev + 5;
+          }
+          return prev;
+        });
+      }, 200);
+    } else if (uploadProgress > 0) {
+      // When upload completes, show 100%
+      setUploadProgress(100);
+      // Then reset after showing 100%
+      const timeout = setTimeout(() => {
+        setUploadProgress(0);
+      }, 1000);
+      return () => clearTimeout(timeout);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isUploading, uploadProgress]);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    
-    if (!file) return;
-    
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Image must be less than 2MB.",
-        variant: "destructive",
-      });
-      return;
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    setError(null);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      await handleFile(e.dataTransfer.files[0]);
     }
+  };
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    setError(null);
     
-    // Validate file type
+    if (e.target.files && e.target.files[0]) {
+      await handleFile(e.target.files[0]);
+    }
+  };
+
+  const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload an image file.",
-        variant: "destructive",
-      });
+      setError("Please upload a valid image file (JPEG, PNG, WebP)");
       return;
     }
-    
-    uploadImage(file);
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size exceeds 5MB limit. Please upload a smaller file.");
+      return;
+    }
+
+    try {
+      const url = await onUpload(file);
+      if (url) {
+        onChange(url);
+      }
+    } catch (err) {
+      setError("Failed to upload image. Please try again.");
+      console.error("Image upload error:", err);
+    }
   };
 
   const handleRemove = () => {
-    onChange(null);
+    onChange("");
+    setUploadProgress(0);
+    setError(null);
   };
 
   return (
     <div className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
       {value ? (
-        <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-border">
-          <img 
-            src={value} 
-            alt="Uploaded image" 
-            className="h-full w-full object-cover"
+        <div className="relative">
+          <img
+            src={value}
+            alt="Uploaded image"
+            className="w-full h-[200px] object-cover rounded-lg"
           />
           <Button
-            onClick={handleRemove}
+            type="button"
             variant="destructive"
             size="icon"
-            className="absolute right-2 top-2"
+            className="absolute top-2 right-2 opacity-80 hover:opacity-100"
+            onClick={handleRemove}
           >
-            <X className="h-4 w-4" />
+            <X className="w-4 h-4" />
           </Button>
         </div>
       ) : (
-        <label className="flex flex-col items-center justify-center w-full aspect-video border-2 border-dashed rounded-md border-muted-foreground/25 cursor-pointer hover:bg-muted/50 transition">
-          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-            <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
-            <p className="mb-2 text-sm text-muted-foreground">
-              <span className="font-semibold">Click to upload</span> or drag and drop
-            </p>
-            <p className="text-xs text-muted-foreground">
-              SVG, PNG, JPG or GIF (max. 2MB)
-            </p>
-          </div>
-          <input 
-            id="file-upload" 
-            type="file" 
-            className="hidden" 
-            accept="image/*"
-            onChange={handleFileChange}
+        <div
+          className={`border-2 border-dashed rounded-lg p-6 text-center ${
+            dragActive ? "border-primary" : "border-muted"
+          } ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
+        >
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            id={`image-upload-${endpoint || "default"}`}
+            onChange={handleChange}
             disabled={isUploading}
           />
-        </label>
+          <label
+            htmlFor={`image-upload-${endpoint || "default"}`}
+            className="cursor-pointer flex flex-col items-center gap-2"
+          >
+            <Upload className="w-8 h-8 text-muted-foreground" />
+            <div className="text-sm text-muted-foreground">
+              <p>Drag and drop an image, or click to select</p>
+              <p className="text-xs mt-1">JPEG, PNG or WebP (max 5MB)</p>
+            </div>
+          </label>
+        </div>
       )}
-      
-      {isUploading && (
-        <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
-          <div className="bg-primary h-2.5 animate-pulse"></div>
+
+      {(isUploading || uploadProgress > 0) && (
+        <div className="space-y-1">
+          <Progress value={uploadProgress} className="w-full h-2" />
+          {isUploading && (
+            <p className="text-xs text-muted-foreground text-right">
+              {uploadProgress}% - Uploading...
+            </p>
+          )}
         </div>
       )}
     </div>

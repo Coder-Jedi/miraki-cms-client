@@ -1,4 +1,3 @@
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,27 +12,29 @@ import { Button } from "@/components/ui/button";
 
 interface ConfirmationDialogProps {
   open: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
   title: string;
   description: string;
   confirmText?: string;
   cancelText?: string;
+  onConfirm: () => void;
   variant?: "default" | "destructive";
+  isLoading?: boolean;
 }
 
 export function ConfirmationDialog({
   open,
-  onClose,
-  onConfirm,
+  onOpenChange,
   title,
   description,
   confirmText = "Confirm",
   cancelText = "Cancel",
+  onConfirm,
   variant = "default",
+  isLoading = false,
 }: ConfirmationDialogProps) {
   return (
-    <AlertDialog open={open} onOpenChange={onClose}>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -45,13 +46,11 @@ export function ConfirmationDialog({
           </AlertDialogCancel>
           <AlertDialogAction asChild>
             <Button 
-              variant={variant === "destructive" ? "destructive" : "default"} 
-              onClick={(e) => {
-                e.preventDefault();
-                onConfirm();
-              }}
+              variant={variant} 
+              onClick={onConfirm}
+              disabled={isLoading}
             >
-              {confirmText}
+              {isLoading ? "Loading..." : confirmText}
             </Button>
           </AlertDialogAction>
         </AlertDialogFooter>
