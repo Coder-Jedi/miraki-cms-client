@@ -5,7 +5,7 @@ import { AxiosError } from 'axios';
 export class BaseService<T> {
   constructor(protected baseUrl: string) {}
 
-  async getAll(params?: Record<string, string | number | boolean>): Promise<ApiResponse<PaginatedResponse<T>>> {
+  async getAll(params?: Record<string, string | number | boolean>): Promise<ApiResponse<ApiResponse<PaginatedResponse<T>>>> {
     return apiClient.get(this.baseUrl, { params });
   }
 

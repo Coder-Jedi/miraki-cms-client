@@ -63,13 +63,13 @@ export default function Artists() {
     sortOrder: sortDirection,
   });
 
-  const artists = artistsResponse?.items ?? [];
+  const artists = artistsResponse?.data?.items ?? [];
   // Make sure we have a valid pagination object with sensible defaults
   const pagination = {
-    page: artistsResponse?.pagination?.page || currentPage,
-    pages: artistsResponse?.pagination?.pages || 1,
-    total: artistsResponse?.pagination?.total || artists.length,
-    perPage: artistsResponse?.pagination?.limit || 20
+    page: artistsResponse?.data?.pagination?.page || currentPage,
+    pages: artistsResponse?.data?.pagination?.pages || 1,
+    total: artistsResponse?.data?.pagination?.total || artists.length,
+    perPage: artistsResponse?.data?.pagination?.limit || 20
   };
 
   const handleSort = (field: string) => {

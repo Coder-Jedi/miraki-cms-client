@@ -65,7 +65,7 @@ export default function Artworks() {
   
   // Query for fetching artworks
   const { data: artworks, isLoading } = useArtworks();
-  const artworkList = artworks?.items ?? [];
+  const artworkList = artworks?.data?.items ?? [];
 
   // Filter artworks based on search query and category
   const filteredArtworks = artworkList.filter((artwork) => {
