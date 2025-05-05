@@ -62,6 +62,8 @@ export default function Artists() {
     sortBy: sortField,
     sortOrder: sortDirection,
   });
+  
+  const deleteArtistMutation = useDeleteArtist();
 
   const artists = artistsResponse?.data?.items ?? [];
   // Make sure we have a valid pagination object with sensible defaults
