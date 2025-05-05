@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
 // Create a configured axios instance for API requests
-export const createApiClient = (baseURL: string = 'http://84.235.162.160:3000/api/v1'): AxiosInstance => {
+export const createApiClient = (baseURL: string = 'https://apis.algoampify.com/api/v1'): AxiosInstance => {
   const client = axios.create({
     baseURL,
     timeout: 10000,
