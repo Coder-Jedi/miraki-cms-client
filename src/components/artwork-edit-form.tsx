@@ -46,7 +46,7 @@ export function ArtworkEditForm({ artwork, open, onClose, onSave }: ArtworkEditF
   const uploadImageMutation = useUploadArtworkImage();
   
   // Get the data from the API responses
-  const artists = artistsData?.items || [];
+  const artists = artistsData?.data?.items || [];
   const categories = categoriesData?.data?.categories || [];
   const areas = areasData?.data?.areas || [];
   
